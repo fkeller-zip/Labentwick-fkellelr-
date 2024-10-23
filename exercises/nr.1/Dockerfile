@@ -1,14 +1,21 @@
-# Verwende das offizielle OpenJDK Image
-FROM openjdk:17-jdk-slim
 
-# Setze das Arbeitsverzeichnis auf /app
+FROM gradle:8.1.1-jdk17 AS builder
+
 WORKDIR /app
 
-# Kopiere die pom.xml und die source files ins Image
-COPY ./pom.xml ./src/ /app/
+COPY pom.xml ./
+COPY src ./src
 
-# Abhängigkeiten installieren
-RUN ./mvnw clean install
+RUN gradle build --no-daemon || return 0
 
-# Anwendung starten
-CMD ["java", "-jar", "target/cloud-usage-1.0-SNAPSHOT.jar"]
+RUN gradle build --no-daemon
+
+FROM openjdk:17-jdk-slim
+
+WORKDIR /app
+
+COPY --from=builder /app/build/libs/*.jar app.jar
+
+EXPOSE 8080
+
+ENTRYPOINT ["java", "-jar", "app.jar"]
